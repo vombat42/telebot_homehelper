@@ -1,4 +1,6 @@
 # template for settings.ini
 
 [Telegram]
-token = ln vgueh h hVKHJV hv kjhb KHJBVk jhv
+bot_name = bla_bla_bot
+chat_id = 123456789
+token = qwerty
