@@ -47,7 +47,7 @@ try:
         INSERT INTO events (date_enent, user_id, ex_id, ex_count)
         VALUES (%s, %s, %s, %s);
         """,
-        ('2023-7-3', 1,3,20))
+        ((2023, 7, 3), 1,3,20))
 
 # SELECT events.id, date_enent, users.name AS user, exercises.name AS exercise, ex_count AS count FROM events JOIN exercises ON events.ex_id = exercises.id JOIN users ON events.user_id = users.id;
     cur.execute(
