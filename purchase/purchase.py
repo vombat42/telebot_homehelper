@@ -60,14 +60,14 @@ markup_yes_no.add(item1, item2)
 
 # кто не в списке userlist - проходит мимо
 userlist=(406827859,)
-@bot.message_handler(func=lambda message: message.chat.id not in userlist)
-def some(message):
-   bot.send_message(message.chat.id, "Sorry...")
+# @bot.message_handler(func=lambda message: message.chat.id not in userlist)
+# def some(message):
+#    bot.send_message(message.chat.id, "Sorry...")
 
 #----------------------------------------------------------------------------
 
 
-
+# обработка выбора пользователем "Упражнения"
 @bot.callback_query_handler(func=lambda call: True)
 def check_callback(call):
 	global user_enter_id
@@ -82,6 +82,7 @@ def check_callback(call):
 			bot.register_next_step_handler(mess, enter_events, int(call.data))
 	bot.answer_callback_query(call.id, "Answer is Yes")
 
+# пользователь вводит количество выполненных упражнений
 def enter_events(message, i):
 	global user_enter_id
 	mess_id=message.id
@@ -93,20 +94,18 @@ def enter_events(message, i):
 			mess = bot.send_message(chat_id=message.chat.id, text=enter_message, parse_mode='HTML', reply_markup = markup_yes_no)
 			user_enter_id = mess.id
 			bot.register_next_step_handler(mess, record_event, i, count)
-		else:
-			bot.delete_message(message.chat.id, mess_id)
-	else:
+		else: #если введен 0, то повторяем ввод
+			bot.register_next_step_handler(message, enter_events, i)
+	else: #если введено не число, то повторяем ввод
 		bot.register_next_step_handler(message, enter_events, i)
 	bot.delete_message(message.chat.id, mess_id)
 
+# подтверждение записи в базу и запись в базу
 def record_event(message, i, count):
 	global user_enter_id
 	if message.text == 'Записать':
-		print('--------------Записать')
 		mess = f'<b><u>Записано</u></b> : {buttons[i][1]} - {count} {buttons[i][2]} !'
 		bot.delete_message(message.chat.id, message.id)
-		print(message.id, '***',user_enter_id)
-		#если это не рекурсивный вызов, а нормальный
 		if user_enter_id!=message.id:
 			bot.delete_message(message.chat.id, user_enter_id)
 		bot.send_message(message.chat.id, mess, parse_mode='HTML')
@@ -116,7 +115,7 @@ def record_event(message, i, count):
 		if user_enter_id!=message.id:
 			bot.delete_message(message.chat.id, user_enter_id)
 		user_enter_id = 0
-	else:
+	else: # если пользователь не нажал кнопку, а ввел какое-то сообщение, то повторяем
 		bot.delete_message(message.chat.id, message.id)
 		if user_enter_id!=message.id:
 			bot.delete_message(message.chat.id, user_enter_id)
@@ -124,7 +123,6 @@ def record_event(message, i, count):
 		mess1 = bot.send_message(chat_id=message.chat.id, text=enter_message, parse_mode='HTML', reply_markup = markup_yes_no)
 		user_enter_id = mess1.id
 		bot.register_next_step_handler(mess1, record_event, i, count)
-	# user_enter_id = 0
 
 
 @bot.message_handler(commands=['start'])
@@ -156,6 +154,14 @@ def privet(message):
 def message_1(message):
 	bot.send_message(message.chat.id,"И вам не хворать")
 
+
+#----------------------------------------------------------------------------
+
+bot.infinity_polling()
+
+
+# ШПАРГАЛКИ
+
 # @bot.message_handler(func = lambda message: True)
 # def message_true(message):
 # 	global user_enter_id
@@ -164,12 +170,6 @@ def message_1(message):
 # 		bot.delete_message(message.chat.id, message.id)
 # 		user_enter_id = 0
 # 		bot.send_message(message.chat.id, f'<b><u>Записано</u></b>', parse_mode='HTML')
-#----------------------------------------------------------------------------
-
-bot.infinity_polling()
-
-
-# ШПАРГАЛКИ
 
 	# bot.reply_to(message=message, text=str(message.chat.id))
 	# markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
