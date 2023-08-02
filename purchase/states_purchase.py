@@ -2,6 +2,8 @@ import configparser
 import telebot
 from telebot import types
 import psycopg2
+from datetime import date
+
 
 #----------------------------------------------------------------------------
 
@@ -9,7 +11,6 @@ config = configparser.ConfigParser()  # создаём объекта парсе
 config.read("settings.ini")  # читаем конфиг
 # обращаемся как к обычному словарю!
 token = config['Telegram']['token'] 
-config.read("settings.ini")  # читаем конфиг
 pg_dbname = config['Postgres']['pg_dbname']
 pg_user = config['Postgres']['pg_user']
 pg_userpass = config['Postgres']['pg_userpass']
@@ -22,14 +23,15 @@ bot=telebot.TeleBot(token)
 
 bot.set_my_commands([
     telebot.types.BotCommand("/start", "Перезапуск бота"),
+    telebot.types.BotCommand("/exercise", "🏋 упражнения"),
     telebot.types.BotCommand("/report", "📜 отчет"),
     telebot.types.BotCommand("/graph", "📊 график"),
     telebot.types.BotCommand("/hello", "✋ приветствие"),
-    telebot.types.BotCommand("/exercise", "🏋 упражнения 🏃"),
     telebot.types.BotCommand("/help", "Помощь")
 ])
 
 t_exercises='exercises' # таблица БД "список упражнений"
+t_events='events' # таблица БД "события (выполненные упражнения)"
 message_list=[] # список id сообщений диалога текущего состояния
 current_mess_id = 0 # id главного сообщения текущего диалога
 exercise_id = -1
@@ -89,11 +91,26 @@ def some(message):
 
 #----------------------------------------------------------------------------
 
+def db_events_add(chat_id, ex_id, ex_count, ex_date):
+	conn = psycopg2.connect(f'postgresql://{pg_user}:{pg_userpass}@{pg_host}:{pg_port}/{pg_dbname}')
+	conn.autocommit = True
+	cur = conn.cursor()
+	cur.execute(f"SELECT id FROM users WHERE chat_id='{chat_id}';")
+	user_id=cur.fetchone()[0]
+	cur.execute(
+	   f"INSERT INTO {t_events} (date_enent, user_id, ex_id, ex_count) VALUES ('{ex_date}',{user_id},{ex_id},{ex_count});"
+	)
+	cur.close()
+	conn.close()
+
+
 def del_mess_from_mess_list(message):
-	global message_list
+	global message_list, current_mess_id
 	for i in message_list:
 		bot.delete_message(chat_id=message.chat.id, message_id=i)
 	message_list.clear()
+	if current_mess_id != 0:
+		bot.delete_message(chat_id=message.chat.id, message_id=current_mess_id)
 
 # обработка выбора пользователем "Упражнения"
 @bot.message_handler(commands=['exercise'])
@@ -159,10 +176,12 @@ def count_exercise(message):
 def record_event(message):
 	global current_mess_id, exercise_id, exercise_count 
 	if message.text == 'Записать':
+		exercise_date = str(date.today())
+		db_events_add(message.chat.id, buttons[exercise_id][0], exercise_count, exercise_date)
 		bot_message  = f'<b><u>Записано</u></b> : {buttons[exercise_id][1]} - {exercise_count} {buttons[exercise_id][2]} !'
 		bot.delete_message(chat_id=message.chat.id, message_id=current_mess_id)
 		mess = bot.send_message(message.chat.id, bot_message, parse_mode='HTML')
-		current_mess_id = mess.id
+		current_mess_id = 0
 		current_state[message.chat.id] = states['choose_exercise']
 	elif message.text == 'Отменить':
 		bot_message = f'Введите количество <b>{buttons[exercise_id][1]}({buttons[exercise_id][2]})</b>'
@@ -210,23 +229,3 @@ def message_1(message):
 #----------------------------------------------------------------------------
 
 bot.infinity_polling()
-
-
-# ШПАРГАЛКИ
-
-# @bot.message_handler(func = lambda message: True)
-# def message_true(message):
-# 	global user_enter_id
-# 	if message.text == 'Записать':
-# 		bot.delete_message(message.chat.id, user_enter_id)
-# 		bot.delete_message(message.chat.id, message.id)
-# 		user_enter_id = 0
-# 		bot.send_message(message.chat.id, f'<b><u>Записано</u></b>', parse_mode='HTML')
-
-	# bot.reply_to(message=message, text=str(message.chat.id))
-	# markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-	# item1 = types.KeyboardButton('Отжимания')
-	# item2 = types.KeyboardButton('Приседания')
-	# item3 = types.KeyboardButton('Икры')
-	# item4 = types.KeyboardButton('Пресс')
-	# markup.add(item1, item2, item3, item4)
